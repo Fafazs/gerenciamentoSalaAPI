@@ -267,3 +267,31 @@ JSON
   "inicio": "2026-09-10T14:00:00-03:00",
   "fim": "2026-09-10T16:00:00-03:00"
 }
+```
+
+#### 2. Alterar Horário / Remanejar (`PUT /api/reservas/:id`)
+
+JSON
+
+```json
+{
+  "salaId": 101,
+  "inicio": "2026-09-10T15:00:00-03:00",
+  "fim": "2026-09-10T17:00:00-03:00"
+}
+```
+
+#### 3. Teste de Conflito/Concorrência (`POST /api/reservas` - Mesmo Horário)
+
+*Envie este payload após criar a reserva do passo 1 para validar o bloqueio automático de choque de horários (**`409 Conflict`**):*
+
+JSON
+
+```json
+{
+  "salaId": 101,
+  "emailResponsavel": "outro.usuario@instituicao.edu.br",
+  "inicio": "2026-09-10T14:30:00-03:00",
+  "fim": "2026-09-10T15:30:00-03:00"
+}
+```
