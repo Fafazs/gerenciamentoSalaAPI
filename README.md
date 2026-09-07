@@ -134,26 +134,49 @@ A integração garante consistência de dados e comodidade. Ao unificar a reserv
 
 ## 5. Engenharia de Software e Arquitetura (Fluxos)
 
-Abaixo encontra-se a descrição arquitetural mapeando o comportamento do sistema sem a necessidade de diagramas visuais gráficos.
+## &#x20;Arquitetura de Rotas e Fluxos da API
 
-### 5.1 Fluxo de Consulta de Disponibilidade (GET /salas)
+A API foi projetada com responsabilidades bem definidas nos Controladores. Abaixo estão listadas as funções e fluxos de rede.
 
-1. O cliente requisita os horários disponíveis enviando um parâmetro de data.
-2. A API Express intercepta a chamada e consulta o banco de dados SQLite.
-3. O sistema calcula a diferença entre os horários totais da sala e os horários que possuem o status `CONFIRMADO` ou `PENDENTE`.
-4. A API retorna um objeto JSON com os horários livres. Nenhuma chamada externa ao Google é realizada nesta etapa para preservar limites de quota de API.
+### 1. `GET /api/salas` - Listagem de Salas
 
-### 5.2 Fluxo de Agendamento e Integração (POST /reservas) - Padrão Two-Phase Commit
+- **Função:** Retorna o catálogo de salas acadêmicas cadastradas.
+- **Fluxo:** Recebe a requisição ➔ Consulta `SELECT * FROM salas` ➔ Retorna JSON com IDs e descrições.
 
-1. O cliente envia o JSON com `salaId`, `emailResponsavel`, `inicio` e `fim`.
-2. A API valida o choque de horários no SQLite.
-   - *Se ocupado:* Retorna `409 Conflict`.
-   - *Se livre:* Avança para o Passo 3.
-3. A API insere a reserva no banco de dados com o status `PENDENTE` (bloqueando a sala para outras requisições concorrentes).
-4. A API atua como *Client HTTP* e dispara a requisição POST utilizando o SDK `googleapis`.
-5. O Google Calendar processa a requisição e devolve um `200 OK` contendo o ID exclusivo do evento.
-6. A API local captura esse ID, atualiza a reserva no SQLite para o status `CONFIRMADO` inserindo o `googleEventId`.
-7. O cliente recebe a confirmação `201 Created`. Se houver falha no passo 5, ocorre um *rollback* no banco local.
+### 2. `GET /api/reservas` - Consulta de Disponibilidade
+
+- **Função:** Lista as reservas existentes para permitir a validação de horários vagos no front-end.
+- **Parâmetros:** `?data=YYYY-MM-DD`
+- **Fluxo:** Recebe requisição ➔ Filtra tabela `reservas` pela data informada ➔ Retorna array de horários bloqueados.
+
+### 3. `POST /api/reservas` - Criação de Reserva (Sincronizada)
+
+- **Função:** Bloqueia a sala e gera o evento na agenda.
+- **Payload Esperado:** `{ "salaId": 1, "emailResponsavel": "aluno@inst.edu.br", "inicio": "2026-09-10T10:00:00-03:00", "fim": "2026-09-10T12:00:00-03:00" }`
+- **Fluxo:**
+  1. Valida choque de horário no SQLite (`409 Conflict` se indisponível).
+  2. Insere reserva com status `PENDENTE`.
+  3. Dispara requisição HTTP ao Google Calendar via SDK.
+  4. Captura o `googleEventId` retornado e atualiza o status no SQLite para `CONFIRMADO`.
+  5. Retorna `201 Created`.
+
+### 4. `PUT /api/reservas/:id` - Atualização Bidirecional
+
+- **Função:** Altera o horário ou a sala de uma reserva existente.
+- **Fluxo:**
+  1. Verifica se o novo horário está livre no SQLite.
+  2. Atualiza os dados da reserva localmente.
+  3. Utiliza o `googleEventId` armazenado para fazer a requisição de atualização no Google Calendar.
+  4. Retorna `200 OK`.
+
+### 5. `DELETE /api/reservas/:id` - Cancelamento Bidirecional
+
+- **Função:** Libera a sala e remove o evento da agenda.
+- **Fluxo:**
+  1. Busca a reserva no banco de dados.
+  2. Envia requisição `DELETE` à API do Google usando o `googleEventId`.
+  3. Deleta (ou marca como cancelada) a linha no SQLite.
+  4. Retorna `204 No Content`.
 
 ## 6. Modelagem do Banco de Dados
 
@@ -191,9 +214,56 @@ Para garantir agilidade sem excessos (*YAGNI*), o sistema opera com uma tabela p
 
 ## 9. Plano de Implementação
 
-A execução do projeto está estruturada em ciclos semanais para validação gradativa das camadas de sistema.
+Devido ao prazo final da entrega para o dia 14/09, o desenvolvimento foi estruturado em um cronograma acelerado (Sprints Diárias):
 
-- **Semana 1 (Setup e Infraestrutura):** Inicialização do ambiente Node.js, configuração do Google Cloud Console, geração do arquivo JSON da *Service Account* e estruturação da tabela no SQLite.
-- **Semana 2 (Core Business Logic):** Desenvolvimento das rotas GET e lógica de bloqueio de concorrência. Testes rigorosos de sobreposição de horários consultando o banco local.
-- **Semana 3 (Camada de Integração):** Acoplamento do SDK `googleapis`. Implementação das rotas POST (Criação) e DELETE (Cancelamento) comunicando-se com a agenda, incluindo a conversão obrigatória para o padrão ISO 8601.
-- **Semana 4 (Polimento e Testes Finais):** Tratamento das falhas de rede simulando a queda de internet, exportação da coleção no Postman para testes do avaliador e redação final da documentação técnica.
+### Fase 1: Setup e Infraestrutura (07/09 - 08/09)
+
+- [ ] Configurar repositório e inicializar projeto Node.js/Express.
+- [ ] Instalar dependências, configurar SQLite e ORM/Query Builder.
+- [ ] Gerar as credenciais da Service Account no Google Cloud e validar permissões do calendário.
+
+### Fase 2: Regras de Negócio e Persistência (09/09 - 10/09)
+
+- [ ] Criar rotas base (`GET` e `POST` locais).
+- [ ] Desenvolver e testar o algoritmo de validação de choque de horários no banco local.
+- [ ] Implementar as rotas de deleção e atualização apenas no SQLite.
+
+### Fase 3: Camada de Integração Google (11/09 - 12/09)
+
+- [ ] Conectar o SDK `googleapis`.
+- [ ] Injetar a lógica de integração no `POST /reservas` (gerar o evento e salvar o `googleEventId`).
+- [ ] Injetar integração no `DELETE` e `PUT` utilizando a chave do evento.
+- [ ] Implementar a lógica de Rollback (Se Google falhar, desfazer inserção no SQLite).
+
+### Fase 4: Refinamento, Testes e Entrega (13/09 - 14/09)
+
+- [ ] Criar coleção do Postman exportada contendo todos os cenários de teste.
+- [ ] Revisão de segurança (.gitignore do `credentials.json` e `.env`).
+- [ ] Testes finais de estresse e edge-cases (datas no passado, IDs falsos).
+- [ ] **14/09 - Submissão e Apresentação do Projeto.**
+
+## 10. Testes e Coleção do Postman (Para Avaliação)
+
+Para facilitar a validação rápida de todos os *endpoints* sem a necessidade de digitação manual de *payloads*, disponibilizamos a coleção pronta do Postman na raiz do repositório:
+
+📄 **Arquivo:** `./postman_collection.json`
+
+### Como importar e utilizar no Postman:
+
+1. Abra o Postman e clique em **Import** (canto superior esquerdo).
+2. Selecione o arquivo `postman_collection.json` presente na pasta raiz deste projeto.
+3. A coleção **"API Reservas Acadêmicas"** será carregada com as variáveis globais (`{{baseUrl}} = http://localhost:3000`) e cenários de teste pré-configurados.
+
+### Exemplos Práticos de Payloads de Teste
+
+#### 1. Criar Reserva (`POST /api/reservas`)
+
+JSON
+
+```json
+{
+  "salaId": 101,
+  "emailResponsavel": "professor.avaliador@instituicao.edu.br",
+  "inicio": "2026-09-10T14:00:00-03:00",
+  "fim": "2026-09-10T16:00:00-03:00"
+}
