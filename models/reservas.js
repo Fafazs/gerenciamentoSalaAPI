@@ -9,14 +9,29 @@ class Reservas {
 
     //Dados para a criação da reserva;
 
-    #name_event;
-    #localization_event;
-    #description_event;
-    #start_date_time_event;
-    #start_timezone_event;
-    #end_date_time_event;
-    #end_timezone_event;
-    #array_emails_event;
+        //Nome da reserva;
+        #name_event;
+
+        //Localização do lugar da reserva;
+        #localization_event;
+        
+        //Descrição da reserva;
+        #description_event;
+
+        //Quando que a reserva começa;
+        #start_date_time_event;
+        
+        //Timezone do começo da reserva;
+        #start_timezone_event;
+        
+        //Quando a reserva termina;
+        #end_date_time_event;
+        
+        //Timezone do fim da reserva;
+        #end_timezone_event;
+        
+        //Lista com todos os emails envolvendo a reserva;
+        #array_emails_event;
 
     //Variáveis para log;
 
@@ -35,11 +50,17 @@ class Reservas {
     constructor(name_event, localization_event, description_event, start_date_time_event, start_timezone_event, end_date_time_event, end_timezone_event, arrays_emails_event){
 
         this.#name_event = name_event;
+
         this.#localization_event = localization_event;
+
         this.#description_event = description_event;
+
         this.#start_date_time_event = start_date_time_event;
+
         this.#start_timezone_event = start_timezone_event;
+
         this.#end_date_time_event = end_date_time_event;
+        
         this.#end_timezone_event = end_timezone_event;
 
         this.#array_emails_event = arrays_emails_event.map(email => ({ email }));
