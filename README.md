@@ -44,6 +44,8 @@ USER_REFRESH_TOKEN=seurefreshtokendogooglecalendar
 
 ```
 
+As variáveis de ambiente "USER_ACCESS_TOKEN" e "USER_REFRESH_TOKEN" devem ser alteradas para os tokens do usuário do seu sistema, normalmente adquirido com OAuth.
+
 Adicione o arquivo `credentials.json` (baixado do Google Cloud Platform contendo as chaves da sua Service Account OAuth 2.0) na pasta raiz do projeto.
 
 ### Passo 3: Rodar o Servidor
