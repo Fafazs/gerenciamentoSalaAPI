@@ -29,8 +29,7 @@ Crie um arquivo chamado `.env` na raiz do projeto contendo as seguintes variáve
 
     PORT=3000
     GOOGLE_CALENDAR_ID=seu_calendar_id@group.calendar.google.com
-    USER_ACCESS_TOKEN=seutokendeacessodogooglecalendar
-    USER_REFRESH_TOKEN=seurefreshtokendogooglecalendar
+
 
 As variáveis de ambiente "USER\_ACCESS\_TOKEN" e "USER\_REFRESH\_TOKEN" devem ser alteradas para os tokens do usuário do seu sistema, normalmente adquirido com OAuth.
 
