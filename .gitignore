@@ -1,3 +1,4 @@
 .env
 credentials.json
 database.sqlite
+node_modules
