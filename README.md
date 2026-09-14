@@ -1,6 +1,6 @@
 # 📅 Sistema de Reservas Acadêmicas & Integração Google Calendar
 
-> API RESTful desenvolvida para gerenciar agendamentos de salas acadêmicas com sincronização bidirecional automatizada para o Google Calendar, otimizando o uso dos espaços físicos e reduzindo abstenções.
+> API RESTful desenvolvida para gerenciar agendamentos de salas acadêmicas com sincronização bidirecional automatizada para o Google Calendar, otimizando o uso dos espaços físicos e reduzindo abstenções. Conta com validação de choque de horários e modo de simulação local.
 
 ## Como Executar o Projeto Localmente
 
@@ -16,53 +16,40 @@ Siga os passos abaixo para rodar a aplicação no seu ambiente de desenvolviment
 
 Abra o seu terminal e execute:
 
-
-```
-git clone https://github.com/usuario/sistema-reservas-api.git
-cd sistema-reservas-api
-
-```
+    git clone https://github.com/usuario/sistema-reservas-api.git
+    cd sistema-reservas-api
 
 ### Passo 2: Configurar Variáveis e Credenciais
 
 Instale as dependências do projeto:
 
-
-```
-npm install
-
-```
+    npm install
 
 Crie um arquivo chamado `.env` na raiz do projeto contendo as seguintes variáveis:
 
+    PORT=3000
+    GOOGLE_CALENDAR_ID=seu_calendar_id@group.calendar.google.com
+    USER_ACCESS_TOKEN=seutokendeacessodogooglecalendar
+    USER_REFRESH_TOKEN=seurefreshtokendogooglecalendar
 
-```
-PORT=3000
-GOOGLE_CALENDAR_ID=seu_calendar_id@group.calendar.google.com
-USER_ACCESS_TOKEN=seutokendeacessodogooglecalendar
-USER_REFRESH_TOKEN=seurefreshtokendogooglecalendar
+As variáveis de ambiente "USER\_ACCESS\_TOKEN" e "USER\_REFRESH\_TOKEN" devem ser alteradas para os tokens do usuário do seu sistema, normalmente adquirido com OAuth.
 
-```
-
-As variáveis de ambiente "USER_ACCESS_TOKEN" e "USER_REFRESH_TOKEN" devem ser alteradas para os tokens do usuário do seu sistema, normalmente adquirido com OAuth.
-
-Adicione o arquivo `credentials.json` (baixado do Google Cloud Platform contendo as chaves da sua Service Account OAuth 2.0) na pasta raiz do projeto.
+> **Nota sobre o Google Calendar (`credentials.json`):**
+>
+> - **Com integração real:** Baixe a chave da sua *Service Account* OAuth 2.0 no Google Cloud Platform, renomeie para `credentials.json` e coloque na pasta raiz.
+> - **Sem integração (Modo Simulação):** Se o arquivo `credentials.json` não for inserido, o sistema ativará automaticamente o **Modo Simulação**, gerando IDs fictícios (`mock_google_id_...`) para que você possa testar as rotas da API localmente sem travar o servidor.
 
 ### Passo 3: Rodar o Servidor
 
 Inicie o servidor de desenvolvimento. O SQLite criará o banco de dados `database.sqlite` automaticamente na primeira execução.
 
-
-```
-npm run dev
-
-```
+    npm run dev
 
 A API estará rodando em `http://localhost:3000`.
 
 ## 🛠️ Tecnologias, Frameworks e Bibliotecas
 
-| **Tecnologia / Biblioteca** | **Função no Projeto**                                                                     |
+| **Tecnologia / Biblioteca** | **Função no Projeto** |
 | --------------------------- | ----------------------------------------------------------------------------------------- |
 | **Node.js**                 | Ambiente de execução JavaScript no lado do servidor.                                      |
 | **Express.js**              | Framework web leve para estruturação de rotas, middlewares e controladores.               |
@@ -73,15 +60,16 @@ A API estará rodando em `http://localhost:3000`.
 
 ## 📑 Índice
 
-- [1. Introdução](#1-introdução)
-- [2. Visão Geral do Produto](#2-visão-geral-do-produto)
-- [3. Requisitos Funcionais](#3-requisitos-funcionais)
-- [4. Requisitos Não Funcionais](#4-requisitos-não-funcionais)
-- [5. Engenharia de Software e Arquitetura (Fluxos)](#5-engenharia-de-software-e-arquitetura-fluxos)
-- [6. Modelagem do Banco de Dados](#6-modelagem-do-banco-de-dados)
-- [7. Estratégia de Integração de Dados](#7-estratégia-de-integração-de-dados)
-- [8. Gestão de Riscos e Monitoramento](#8-gestão-de-riscos-e-monitoramento)
-- [9. Plano de Implementação](#9-plano-de-implementação)
+- [1. Introdução](https://www.google.com/search?q=%231-introdu%C3%A7%C3%A3o)
+- [2. Visão Geral do Produto](https://www.google.com/search?q=%232-vis%C3%A3o-geral-do-produto)
+- [3. Requisitos Funcionais](https://www.google.com/search?q=%233-requisitos-funcionais)
+- [4. Requisitos Não Funcionais](https://www.google.com/search?q=%234-requisitos-n%C3%A3o-funcionais)
+- [5. Engenharia de Software e Arquitetura (Fluxos)](https://www.google.com/search?q=%235-engenharia-de-software-e-arquitetura-fluxos)
+- [6. Modelagem do Banco de Dados](https://www.google.com/search?q=%236-modelagem-do-banco-de-dados)
+- [7. Estratégia de Integração de Dados](https://www.google.com/search?q=%237-estrat%C3%A9gia-de-integra%C3%A7%C3%A3o-de-dados)
+- [8. Gestão de Riscos e Monitoramento](https://www.google.com/search?q=%238-gest%C3%A3o-de-riscos-e-monitoramento)
+- [9. Plano de Implementação](https://www.google.com/search?q=%239-plano-de-implementa%C3%A7%C3%A3o)
+- [10. Testes e Coleção do Postman](https://www.google.com/search?q=%2310-testes-e-cole%C3%A7%C3%A3o-do-postman-para-avalia%C3%A7%C3%A3o)
 
 ## 1. Introdução
 
@@ -122,10 +110,10 @@ A integração garante consistência de dados e comodidade. Ao unificar a reserv
 | **ID**    | **Descrição**                                                                                                                                                                  | **Prioridade** |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
 | **RF001** | **Consulta de Disponibilidade:** O sistema deve listar os horários de salas disponíveis para os próximos 30 dias consultando estritamente o banco de dados local.              | Essencial      |
-| **RF002** | **Criação e Sincronização:** O sistema deve registrar a reserva local e enviar um *payload* via API externa criando o evento no Google Calendar.                               | Essencial      |
+| **RF002** | **Criação e Sincronização:** O sistema deve registrar a reserva local e enviar um *payload* via API externa criando o evento no Google Calendar (ou usar Modo Simulação).      | Essencial      |
 | **RF003** | **Validação de Concorrência:** O sistema deve validar a disponibilidade da sala (evitar choque de horário) localmente antes de qualquer tentativa de comunicação com o Google. | Essencial      |
 | **RF004** | **Atualização Sincronizada:** O sistema deve permitir a alteração de data/hora, disparando um `PUT/PATCH` para refletir a mudança no Google Calendar.                          | Importante     |
-| **RF005** | **Cancelamento Bidirecional:** O cancelamento da reserva deve remover o registro no SQLite e enviar um `DELETE` para a API do Google.                                          | Essencial      |
+| **RF005** | **Cancelamento Bidirecional:** O cancelamento da reserva deve atualizar o status no SQLite (soft/hard delete) e enviar uma requisição para a API do Google.                    | Essencial      |
 
 ## 4. Requisitos Não Funcionais
 
@@ -138,8 +126,6 @@ A integração garante consistência de dados e comodidade. Ao unificar a reserv
 
 ## 5. Engenharia de Software e Arquitetura (Fluxos)
 
-## &#x20;Arquitetura de Rotas e Fluxos da API
-
 A API foi projetada com responsabilidades bem definidas nos Controladores. Abaixo estão listadas as funções e fluxos de rede.
 
 ### 1. `GET /api/salas` - Listagem de Salas
@@ -147,40 +133,48 @@ A API foi projetada com responsabilidades bem definidas nos Controladores. Abaix
 - **Função:** Retorna o catálogo de salas acadêmicas cadastradas.
 - **Fluxo:** Recebe a requisição ➔ Consulta `SELECT * FROM salas` ➔ Retorna JSON com IDs e descrições.
 
-### 2. `GET /api/reservas` - Consulta de Disponibilidade
+### 2. `GET /api/reservas` ou `/api/reservas/disponibilidade` - Consulta de Disponibilidade
 
-- **Função:** Lista as reservas existentes para permitir a validação de horários vagos no front-end.
+- **Função:** Lista as reservas existentes para permitir a validação de horários vagos no front-end (próximos 30 dias).
 - **Parâmetros:** `?data=YYYY-MM-DD`
 - **Fluxo:** Recebe requisição ➔ Filtra tabela `reservas` pela data informada ➔ Retorna array de horários bloqueados.
 
 ### 3. `POST /api/reservas` - Criação de Reserva (Sincronizada)
 
 - **Função:** Bloqueia a sala e gera o evento na agenda.
-- **Payload Esperado:** `{ "salaId": 1, "emailResponsavel": "aluno@inst.edu.br", "inicio": "2026-09-10T10:00:00-03:00", "fim": "2026-09-10T12:00:00-03:00" }`
 - **Fluxo:**
-  1. Valida choque de horário no SQLite (`409 Conflict` se indisponível).
+  1. Valida campos obrigatórios, datas e choque de horário no SQLite (`409 Conflict` se indisponível).
   2. Insere reserva com status `PENDENTE`.
-  3. Dispara requisição HTTP ao Google Calendar via SDK.
+  3. Dispara requisição HTTP ao Google Calendar via SDK (ou gera Mock ID).
   4. Captura o `googleEventId` retornado e atualiza o status no SQLite para `CONFIRMADO`.
   5. Retorna `201 Created`.
 
 ### 4. `PUT /api/reservas/:id` - Atualização Bidirecional
 
-- **Função:** Altera o horário ou a sala de uma reserva existente.
+- **Função:** Altera o horário, sala ou detalhes de uma reserva existente.
 - **Fluxo:**
   1. Verifica se o novo horário está livre no SQLite.
   2. Atualiza os dados da reserva localmente.
   3. Utiliza o `googleEventId` armazenado para fazer a requisição de atualização no Google Calendar.
   4. Retorna `200 OK`.
 
-### 5. `DELETE /api/reservas/:id` - Cancelamento Bidirecional
+### 5. `PATCH /api/reservas/:id/cancelar` - Soft-Delete
 
-- **Função:** Libera a sala e remove o evento da agenda.
+- **Função:** Cancela a reserva preservando o histórico no banco de dados.
 - **Fluxo:**
   1. Busca a reserva no banco de dados.
   2. Envia requisição `DELETE` à API do Google usando o `googleEventId`.
-  3. Deleta (ou marca como cancelada) a linha no SQLite.
-  4. Retorna `204 No Content`.
+  3. Atualiza o status da linha no SQLite para `CANCELADO`.
+  4. Retorna `200 OK`.
+
+### 6. `DELETE /api/reservas/:id` - Hard-Delete
+
+- **Função:** Remove permanentemente o registro da base de dados e da agenda.
+- **Fluxo:**
+  1. Busca a reserva no banco de dados.
+  2. Envia requisição `DELETE` à API do Google usando o `googleEventId`.
+  3. Realiza a deleção física (`DELETE FROM reservas WHERE id = ?`) no SQLite.
+  4. Retorna `204 No Content` / `200 OK`.
 
 ## 6. Modelagem do Banco de Dados
 
@@ -188,20 +182,20 @@ Para garantir agilidade sem excessos (*YAGNI*), o sistema opera com uma tabela p
 
 ### Tabela: `reservas`
 
-| **Coluna**             | **Tipo de Dado** | **Restrições**      | **Descrição**                                                          |
-| ---------------------- | ---------------- | ------------------- | ---------------------------------------------------------------------- |
-| **`id`**               | `INTEGER`        | **Primary Key**     | Identificador único autoincremental.                                   |
-| **`salaId`**           | `INTEGER`        | Not Null            | Identificador numérico da sala física.                                 |
-| **`emailResponsavel`** | `TEXT`           | Not Null            | E-mail institucional do requerente (convidado no Google).              |
-| **`inicio`**           | `TEXT`           | Not Null            | Data e hora de início (Formato ISO 8601).                              |
-| **`fim`**              | `TEXT`           | Not Null            | Data e hora de término (Formato ISO 8601).                             |
-| **`googleEventId`**    | `TEXT`           | Nullable            | ID retornado pelo Google para futuras atualizações/exclusões.          |
-| **`status`**           | `TEXT`           | Default: 'PENDENTE' | Controla o estado de consistência (`PENDENTE`, `CONFIRMADO`, `FALHA`). |
+| **Coluna**             | **Tipo de Dado** | **Restrições**      | **Descrição**                                                       |
+| ---------------------- | ---------------- | ------------------- | ------------------------------------------------------------------- |
+| **`id`**               | `INTEGER`        | **Primary Key**     | Identificador único autoincremental da reserva.                     |
+| **`salaId`**           | `INTEGER`        | Not Null            | Identificador numérico da sala física.                              |
+| **`emailResponsavel`** | `TEXT`           | Not Null            | E-mail institucional do requerente (convidado no Google).           |
+| **`inicio`**           | `TEXT`           | Not Null            | Data e hora de início (Formato ISO 8601).                           |
+| **`fim`**              | `TEXT`           | Not Null            | Data e hora de término (Formato ISO 8601).                          |
+| **`googleEventId`**    | `TEXT`           | Nullable            | ID retornado pelo Google ou `mock_...` para atualizações/exclusões. |
+| **`status`**           | `TEXT`           | Default: 'PENDENTE' | Controla o estado (`PENDENTE`, `CONFIRMADO`, `CANCELADO`, `FALHA`). |
 
 ## 7. Estratégia de Integração de Dados
 
-- **Mapeamento Estrutural:** O modelo local armazena dados estruturais essenciais. Durante a integração, o Node.js constrói dinamicamente o recurso *Event* exigido pelo Google, montando o campo `summary` (título visual, ex: "Reserva Sala X - Reunião") e alocando o `emailResponsavel` no array estrutural de `attendees`.
-- **Transformação de Fuso Horário:** As datas recebidas do cliente sofrerão intervenção do Node.js para padronização. Strings simples serão convertidas estritamente para o padrão **ISO 8601** exigido pela API v3, injetando o *timezone* correto (ex: `-03:00` para Brasília) nas propriedades `start.dateTime` e `end.dateTime`.
+- **Mapeamento Estrutural:** O modelo local armazena dados estruturais essenciais. Durante a integração, o Node.js constrói dinamicamente o recurso *Event* exigido pelo Google, montando o campo `summary` (título visual, ex: "Reunião de Projeto de TCC") e alocando o `emailResponsavel` no array estrutural de `attendees`.
+- **Transformação de Fuso Horário:** As datas recebidas do cliente sofrerão intervenção do Node.js para padronização. Strings simples serão convertidas estritamente para o padrão **ISO 8601** exigido pela API v3, injetando o *timezone* correto (ex: `-03:00` para Brasília ou formato UTC `Z`) nas propriedades `start.dateTime` e `end.dateTime`.
 - **Qualidade da Informação:** Antes de acionar a camada de rede externa, o sistema passa o *payload* por uma sanitização. A biblioteca `regex` validará a estrutura do e-mail, e a lógica de negócios impedirá datas de término anteriores às datas de início, prevenindo a devolução de erros `400 Bad Request` pelo Google.
 
 ## 8. Gestão de Riscos e Monitoramento
@@ -209,7 +203,7 @@ Para garantir agilidade sem excessos (*YAGNI*), o sistema opera com uma tabela p
 ### Mapeamento e Mitigação de Riscos
 
 - **Risco Primário (Falha de Rede Externa):** Indisponibilidade da API do Google Calendar gerar um bloqueio permanente da sala no banco local.
-- **Plano de Mitigação:** Adoção da máquina de estados. Caso a API do Google retorne `504 Gateway Timeout` ou a requisição falhe após a inserção no banco local, o Node.js captura o erro (`try/catch`), remove a reserva com status `PENDENTE` (liberando o horário) e retorna `503 Service Unavailable` orientando o usuário a tentar novamente mais tarde.
+- **Plano de Mitigação:** Adoção da máquina de estados. Caso a API do Google retorne `504 Gateway Timeout` ou a requisição falhe após a inserção no banco local, o Node.js captura o erro (`try/catch`), altera a reserva para status `FALHA` ou a remove (liberando o horário) e retorna `503 Service Unavailable` orientando o usuário a tentar novamente mais tarde.
 
 ### Estratégia de Monitoramento
 
@@ -222,80 +216,26 @@ Devido ao prazo final da entrega para o dia 14/09, o desenvolvimento foi estrutu
 
 ### Fase 1: Setup e Infraestrutura (07/09 - 08/09)
 
-- [ ] Configurar repositório e inicializar projeto Node.js/Express.
-- [ ] Instalar dependências, configurar SQLite e ORM/Query Builder.
-- [ ] Gerar as credenciais da Service Account no Google Cloud e validar permissões do calendário.
+- [x] Configurar repositório e inicializar projeto Node.js/Express.
+- [x] Instalar dependências, configurar SQLite e ORM/Query Builder.
+- [x] Gerar as credenciais da Service Account no Google Cloud e validar permissões do calendário.
 
 ### Fase 2: Regras de Negócio e Persistência (09/09 - 10/09)
 
-- [ ] Criar rotas base (`GET` e `POST` locais).
-- [ ] Desenvolver e testar o algoritmo de validação de choque de horários no banco local.
-- [ ] Implementar as rotas de deleção e atualização apenas no SQLite.
+- [x] Criar rotas base (`GET` e `POST` locais).
+- [x] Desenvolver e testar o algoritmo de validação de choque de horários no banco local.
+- [x] Implementar as rotas de deleção (Soft e Hard delete) e atualização apenas no SQLite.
 
 ### Fase 3: Camada de Integração Google (11/09 - 12/09)
 
-- [ ] Conectar o SDK `googleapis`.
-- [ ] Injetar a lógica de integração no `POST /reservas` (gerar o evento e salvar o `googleEventId`).
-- [ ] Injetar integração no `DELETE` e `PUT` utilizando a chave do evento.
-- [ ] Implementar a lógica de Rollback (Se Google falhar, desfazer inserção no SQLite).
+- [x] Conectar o SDK `googleapis` e preparar o fallback para o Modo Simulação.
+- [x] Injetar a lógica de integração no `POST /reservas` (gerar o evento e salvar o `googleEventId`).
+- [x] Injetar integração no `PATCH`, `DELETE` e `PUT` utilizando a chave do evento.
+- [x] Implementar a lógica de Rollback (Se Google falhar, desfazer inserção no SQLite).
 
 ### Fase 4: Refinamento, Testes e Entrega (13/09 - 14/09)
 
-- [ ] Criar coleção do Postman exportada contendo todos os cenários de teste.
-- [ ] Revisão de segurança (.gitignore do `credentials.json` e `.env`).
-- [ ] Testes finais de estresse e edge-cases (datas no passado, IDs falsos).
-- [ ] **14/09 - Submissão e Apresentação do Projeto.**
-
-## 10. Testes e Coleção do Postman (Para Avaliação)
-
-Para facilitar a validação rápida de todos os *endpoints* sem a necessidade de digitação manual de *payloads*, disponibilizamos a coleção pronta do Postman na raiz do repositório:
-
-📄 **Arquivo:** `./postman_collection.json`
-
-### Como importar e utilizar no Postman:
-
-1. Abra o Postman e clique em **Import** (canto superior esquerdo).
-2. Selecione o arquivo `postman_collection.json` presente na pasta raiz deste projeto.
-3. A coleção **"API Reservas Acadêmicas"** será carregada com as variáveis globais (`{{baseUrl}} = http://localhost:3000`) e cenários de teste pré-configurados.
-
-### Exemplos Práticos de Payloads de Teste
-
-#### 1. Criar Reserva (`POST /api/reservas`)
-
-JSON
-
-```json
-{
-  "salaId": 101,
-  "emailResponsavel": "professor.avaliador@instituicao.edu.br",
-  "inicio": "2026-09-10T14:00:00-03:00",
-  "fim": "2026-09-10T16:00:00-03:00"
-}
-```
-
-#### 2. Alterar Horário / Remanejar (`PUT /api/reservas/:id`)
-
-JSON
-
-```json
-{
-  "salaId": 101,
-  "inicio": "2026-09-10T15:00:00-03:00",
-  "fim": "2026-09-10T17:00:00-03:00"
-}
-```
-
-#### 3. Teste de Conflito/Concorrência (`POST /api/reservas` - Mesmo Horário)
-
-*Envie este payload após criar a reserva do passo 1 para validar o bloqueio automático de choque de horários (**`409 Conflict`**):*
-
-JSON
-
-```json
-{
-  "salaId": 101,
-  "emailResponsavel": "outro.usuario@instituicao.edu.br",
-  "inicio": "2026-09-10T14:30:00-03:00",
-  "fim": "2026-09-10T15:30:00-03:00"
-}
-```
+- [x] Criar coleção do Postman exportada contendo todos os cenários de teste.
+- [x] Revisão de segurança (`.gitignore` do `credentials.json` e `.env`).
+- [x] Testes finais de estresse e edge-cases (datas no passado, IDs falsos).
+- [x] **14/09 - Submissão e Apresentação do Projeto.**
