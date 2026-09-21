@@ -1,5 +1,4 @@
-# 📅 Sistema de Reservas Acadêmicas 
-# & Integração Google Calendar ( V1 ) 
+# 📅 Sistema de Reservas Acadêmicas $ Google Calendar (V1) 
 
 
 > API RESTful desenvolvida para gerenciar agendamentos de salas acadêmicas com sincronização bidirecional automatizada para o Google Calendar, otimizando o uso dos espaços físicos e reduzindo abstenções. Conta com validação de choque de horários e modo de simulação local.
