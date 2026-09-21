@@ -209,32 +209,70 @@ Para garantir agilidade sem excessos (*YAGNI*), o sistema opera com uma tabela p
 - **Logging Dinâmico:** A biblioteca `morgan` registrará todas as transações HTTP no terminal do servidor, mapeando gargalos de tempo de processamento entre o acesso ao SQLite e o retorno da chamada à API externa.
 - **Manutenção Preventiva:** A durabilidade do arquivo `database.sqlite` permite auditoria direta e backup imediato via cópia de arquivo físico. O gerenciamento de quotas de *requests* gratuitos da *Service Account* ocorrerá através do painel integrado do Google Cloud Console.
 
-## 9. Plano de Implementação
+## 9. Plano de Implementação (Versão 2.0 - Evolução Arquitetural)
 
-Devido ao prazo final da entrega para o dia 14/09, o desenvolvimento foi estruturado em um cronograma acelerado (Sprints Diárias):
+Com a consolidação e validação do MVP (Versão 1.0), o sistema provou sua eficácia no agendamento e integração *one-way* com o Google Calendar. A **Versão 2.0** tem como foco a maturidade do produto, elevando a segurança, a Experiência do Usuário (UX), a Experiência do Desenvolvedor (DX) e preparando a aplicação para o ambiente de produção em nuvem.
 
-### Fase 1: Setup e Infraestrutura (07/09 - 08/09)
+### 9.1 Diagnóstico Atual (Problemas e Dores)
 
-- [x] Configurar repositório e inicializar projeto Node.js/Express.
-- [x] Instalar dependências, configurar SQLite e ORM/Query Builder.
-- [x] Gerar as credenciais da Service Account no Google Cloud e validar permissões do calendário.
+A operação da API atual levantou os seguintes pontos de melhoria:
 
-### Fase 2: Regras de Negócio e Persistência (09/09 - 10/09)
+1. **Gestão Manual de Credenciais:** A necessidade de buscar *Access/Refresh Tokens* manualmente e inseri-los no arquivo `.env` gera alto atrito para novos usuários e quebra o fluxo de automação.
+2. **Dependência de Clientes HTTP:** A ausência de uma interface gráfica obriga o uso de ferramentas técnicas (como Postman) para realizar agendamentos, inviabilizando o uso por usuários finais (professores e alunos).
+3. **Inconsistência de Estado (Sincronização Unidirecional):** Alterações ou exclusões feitas diretamente no aplicativo do Google Calendar não refletem no banco de dados local (SQLite), gerando dados defasados.
+4. **Vulnerabilidade de Acesso:** A API atual é aberta. Qualquer pessoa com acesso à rede pode criar, alterar ou deletar reservas em nome de outros, sem rastreabilidade.
+5. **Ambiente Local e Isolado:** O sistema roda exclusivamente na máquina de desenvolvimento (`localhost`), impedindo o consumo da API por outras aplicações web ou mobile.
 
-- [x] Criar rotas base (`GET` e `POST` locais).
-- [x] Desenvolver e testar o algoritmo de validação de choque de horários no banco local.
-- [x] Implementar as rotas de deleção (Soft e Hard delete) e atualização apenas no SQLite.
+### 9.2 Soluções Propostas (Escopo V2)
 
-### Fase 3: Camada de Integração Google (11/09 - 12/09)
+Para mitigar os riscos e escalar a aplicação, a Versão 2.0 implementará os seguintes pilares arquiteturais:
 
-- [x] Conectar o SDK `googleapis` e preparar o fallback para o Modo Simulação.
-- [x] Injetar a lógica de integração no `POST /reservas` (gerar o evento e salvar o `googleEventId`).
-- [x] Injetar integração no `PATCH`, `DELETE` e `PUT` utilizando a chave do evento.
-- [x] Implementar a lógica de Rollback (Se Google falhar, desfazer inserção no SQLite).
+- **Autenticação Automática OAuth2:** Substituição das variáveis manuais por um fluxo automatizado de login via Google, persistindo tokens no banco de dados.
+- **Sistema de Identidade (JWT):** Implementação de perfis de acesso (RBAC - *Role-Based Access Control*), garantindo que apenas usuários autenticados gerenciem suas reservas, e administradores gerenciem o catálogo de salas.
+- **Interface Gráfica (UI):** Desenvolvimento de um Front-end leve (renderizado no servidor ou via framework reativo simples) integrado nativamente com a API.
+- **Webhooks (Push Notifications):** Inscrição nos canais de notificação do Google para garantir consistência perfeita bidirecional.
+- **Containerização e Nuvem:** Empacotamento via Docker e *deploy* automatizado em ambiente de produção público.
 
-### Fase 4: Refinamento, Testes e Entrega (13/09 - 14/09)
+### 9.3 Cronograma de Implementação (Prazo Estimado: 4 Semanas)
 
-- [x] Criar coleção do Postman exportada contendo todos os cenários de teste.
-- [x] Revisão de segurança (`.gitignore` do `credentials.json` e `.env`).
-- [x] Testes finais de estresse e edge-cases (datas no passado, IDs falsos).
-- [x] **14/09 - Submissão e Apresentação do Projeto.**
+O desenvolvimento será fragmentado em 4 Sprints (1 semana por ciclo), com entregas incrementais ao final de cada fase.
+
+#### 📅 Sprint 1: Identidade, Segurança e OAuth2 Automático
+
+**Objetivo:** Remover a configuração manual do `.env` e proteger as rotas do sistema.
+
+- [ ] **Issue 1.1:** Criar tabela `usuarios` no SQLite (campos: `id`, `email`, `perfil`, `access_token`, `refresh_token`).
+- [ ] **Issue 1.2:** Implementar rota `GET /api/auth/google` para redirecionar o usuário à tela de consentimento do Google.
+- [ ] **Issue 1.3:** Implementar rota de callback (`/api/auth/google/callback`) para capturar, criptografar e salvar os tokens no SQLite.
+- [ ] **Issue 1.4:** Desenvolver middleware de autenticação JWT (`authMiddleware.js`) para validar tokens de sessão no cabeçalho `Authorization`.
+- [ ] **Issue 1.5:** Refatorar as rotas de `/reservas` para extrair o usuário do token JWT e aplicar restrições (ex: um usuário comum só pode deletar a própria reserva).
+
+#### 📅 Sprint 2: Sincronização Bidirecional Constante (Webhooks)
+
+**Objetivo:** Garantir que o banco de dados local saiba quando um evento é alterado no app do Google Calendar.
+
+- [ ] **Issue 2.1:** Configurar túnel reverso (ex: `ngrok`) para expor o servidor local temporariamente para a internet durante os testes.
+- [ ] **Issue 2.2:** Desenvolver rota `POST /api/webhooks/calendar` para receber os *push notifications* do Google.
+- [ ] **Issue 2.3:** Implementar função para registrar o canal de notificação (`channels.watch`) na API do Google no momento do login do usuário.
+- [ ] **Issue 2.4:** Criar a lógica de conciliação: ao receber o webhook, a API busca o evento atualizado no Google pelo `googleEventId` e faz o `UPDATE` ou `DELETE` automático no SQLite.
+
+#### 📅 Sprint 3: Experiência do Usuário (Front-end Acoplado)
+
+**Objetivo:** Eliminar o uso do Postman entregando uma interface visual amigável.
+
+- [ ] **Issue 3.1:** Configurar *engine* de visualização (ex: EJS, Pug) ou servir arquivos estáticos (HTML/CSS/JS) pelo Express.
+- [ ] **Issue 3.2:** Criar tela de **Login** com botão "Entrar com Google".
+- [ ] **Issue 3.3:** Desenvolver o **Dashboard de Salas**, integrando uma biblioteca de calendário (como *FullCalendar.js*) consumindo a rota `GET /api/reservas`.
+- [ ] **Issue 3.4:** Criar modais interativos para "Nova Reserva" e "Detalhes/Cancelar Reserva", disparando requisições `POST` e `DELETE` via `fetch` no *client-side*.
+- [ ] **Issue 3.5:** Tratar retornos de erro da API no Front-end (ex: exibir *toast notification* de "Sala indisponível neste horário" ao receber um `409 Conflict`).
+
+#### 📅 Sprint 4: Infraestrutura, Docker e Deploy
+
+**Objetivo:** Tirar a aplicação do ambiente local e disponibilizá-la publicamente com práticas de DevOps.
+
+- [ ] **Issue 4.1:** Escrever o arquivo `Dockerfile` utilizando uma imagem oficial leve do Node.js (`node:18-alpine`).
+- [ ] **Issue 4.2:** Criar o arquivo `.dockerignore` para excluir a pasta `node_modules` e dados sensíveis.
+- [ ] **Issue 4.3:** Escrever o `docker-compose.yml` para facilitar a orquestração do serviço (e de um banco externo no futuro, caso ocorra migração do SQLite para PostgreSQL).
+- [ ] **Issue 4.4:** Configurar variáveis de ambiente de produção e realizar o deploy em plataforma PaaS (Render, Railway ou Heroku).
+- [ ] **Issue 4.5:** Atualizar as URLs de *Callback* do OAuth2 e dos *Webhooks* no Google Cloud Console para apontar para o novo domínio de produção (HTTPS).
+- [ ] **Issue 4.6:** Homologação final end-to-end (Teste de estresse, criação, alteração via web e via app mobile do Google, validação de logs em nuvem).
