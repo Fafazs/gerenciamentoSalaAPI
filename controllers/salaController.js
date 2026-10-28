@@ -4,8 +4,7 @@ class SalaController {
     // RF006: Listar todas as salas
     static async listarSalas(req, res) {
         try {
-            const db = req.app.locals.db;
-            const salas = await SalaModel.listarTodas(db);
+            const salas = await SalaModel.listarTodas();
             return res.json({
                 sucesso: true,
                 dados: salas
@@ -17,7 +16,6 @@ class SalaController {
 
     // RF007: Criar uma nova sala
     static async criarSala(req, res) {
-        const db = req.app.locals.db;
         const { nome, capacidade } = req.body;
 
         if (!nome || capacidade === undefined || capacidade === null) {
@@ -30,7 +28,7 @@ class SalaController {
         }
 
         try {
-            const id = await SalaModel.criar(db, { nome: nome.trim(), capacidade: capacidadeNum });
+            const id = await SalaModel.criar({ nome: nome.trim(), capacidade: capacidadeNum });
             return res.status(201).json({
                 sucesso: true,
                 mensagem: "Sala criada com sucesso!",
@@ -43,7 +41,6 @@ class SalaController {
 
     // RF008: Deletar uma sala por ID
     static async deletarSala(req, res) {
-        const db = req.app.locals.db;
         const { id } = req.params;
 
         try {
@@ -52,7 +49,7 @@ class SalaController {
                 return res.status(400).json({ erro: "ID de sala inválido." });
             }
 
-            const linhasAfetadas = await SalaModel.deletar(db, idNumerico);
+            const linhasAfetadas = await SalaModel.deletar(idNumerico);
 
             if (!linhasAfetadas || linhasAfetadas === 0) {
                 return res.status(404).json({ erro: `Sala com ID ${id} não foi encontrada.` });
@@ -65,10 +62,10 @@ class SalaController {
         } catch (erro) {
             console.error("Erro ao deletar sala:", erro.message);
 
-            // Captura restrição de Foreign Key se houver reservas vinculadas
-            if (erro.message.includes('FOREIGN KEY') || erro.message.includes('CONSTRAINT')) {
+            // Código 23503 é violação de Foreign Key no PostgreSQL / Supabase
+            if (erro.code === '23503' || (erro.message && erro.message.toLowerCase().includes('foreign key'))) {
                 return res.status(400).json({
-                    erro: "Não é possível deletar esta sala pois existem reservas vinculadas a ela. Cancele as reservas primeiro."
+                    erro: "Não é possível deletar esta sala pois existem reservas vinculadas a ela. Cancele ou remova as reservas primeiro."
                 });
             }
 

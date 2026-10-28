@@ -1,23 +1,47 @@
+const supabase = require('../config/database');
+
 class SalaModel {
-    static async listarTodas(db) {
-        return await db.all('SELECT * FROM salas ORDER BY id ASC');
+    static async listarTodas() {
+        const { data, error } = await supabase
+            .from('salas')
+            .select('*')
+            .order('id', { ascending: true });
+
+        if (error) throw error;
+        return data;
     }
 
-    static async buscarPorId(db, id) {
-        return await db.get('SELECT * FROM salas WHERE id = ?', [Number(id)]);
+    static async buscarPorId(id) {
+        const { data, error } = await supabase
+            .from('salas')
+            .select('*')
+            .eq('id', Number(id))
+            .maybeSingle();
+
+        if (error) throw error;
+        return data;
     }
 
-    static async criar(db, { nome, capacidade }) {
-        const resultado = await db.run(
-            'INSERT INTO salas (nome, capacidade) VALUES (?, ?)',
-            [nome, Number(capacidade)]
-        );
-        return resultado.lastID;
+    static async criar({ nome, capacidade }) {
+        const { data, error } = await supabase
+            .from('salas')
+            .insert([{ nome, capacidade: Number(capacidade) }])
+            .select('id')
+            .single();
+
+        if (error) throw error;
+        return data.id;
     }
 
-    static async deletar(db, id) {
-        const resultado = await db.run('DELETE FROM salas WHERE id = ?', [Number(id)]);
-        return resultado.changes; // Retorna o número de linhas removidas instantaneamente
+    static async deletar(id) {
+        const { data, error } = await supabase
+            .from('salas')
+            .delete()
+            .eq('id', Number(id))
+            .select('id');
+
+        if (error) throw error;
+        return data ? data.length : 0; // Retorna quantas linhas foram deletadas
     }
 }
 

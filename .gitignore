@@ -1,4 +1,4 @@
+node_modules/
 .env
 credentials.json
-database.sqlite
-node_modules
+credentials.json.bak

@@ -20,17 +20,15 @@ class ReservaController {
     // RF001: Listar disponibilidade dos próximos 30 dias
     static async listarDisponibilidade(req, res) {
         try {
-            const db = req.app.locals.db;
-            const reservas = await ReservaModel.listarDisponibilidade30Dias(db);
+            const reservas = await ReservaModel.listarDisponibilidade30Dias();
             return res.json({ sucesso: true, quantidade: reservas.length, dados: reservas });
         } catch (erro) {
-            return res.status(500).json({ erro: "Erro ao consultar disponibilidade no banco local." });
+            return res.status(500).json({ erro: "Erro ao consultar disponibilidade no Supabase." });
         }
     }
 
     // RF002 e RF005: Criar reserva
     static async criarReserva(req, res) {
-        const db = req.app.locals.db;
         const { salaId, emailResponsavel, inicio, fim, titulo, descricao } = req.body;
 
         if (!salaId || !emailResponsavel || !inicio || !fim) {
@@ -53,19 +51,21 @@ class ReservaController {
         const isoFim = dataFim.toISOString();
 
         try {
-            const sala = await SalaModel.buscarPorId(db, salaId);
+            const sala = await SalaModel.buscarPorId(salaId);
             if (!sala) {
                 return res.status(404).json({ erro: "Sala informada não existe." });
             }
 
-            const conflito = await ReservaModel.verificarConflito(db, salaId, isoInicio, isoFim);
+            const conflito = await ReservaModel.verificarConflito(salaId, isoInicio, isoFim);
             if (conflito) {
                 return res.status(409).json({ erro: "Conflito de horário: A sala já possui reserva ativa neste período." });
             }
 
-            const reservaId = await ReservaModel.criar(db, {
+            const reservaId = await ReservaModel.criar({
                 salaId: Number(salaId),
                 emailResponsavel,
+                titulo: titulo || `Reserva: ${sala.nome}`,
+                descricao: descricao || `Responsável: ${emailResponsavel}`,
                 inicio: isoInicio,
                 fim: isoFim,
                 status: 'PENDENTE'
@@ -89,9 +89,9 @@ class ReservaController {
                     });
                     googleEventId = googleResponse.data.id;
                 } catch (googleError) {
-                    await ReservaModel.deletar(db, reservaId);
+                    await ReservaModel.deletar(reservaId);
                     return res.status(502).json({
-                        erro: "Falha na API do Google Calendar. Agendamento desfeito no banco local.",
+                        erro: "Falha na API do Google Calendar. Agendamento desfeito no banco.",
                         detalhe: googleError.message
                     });
                 }
@@ -100,17 +100,18 @@ class ReservaController {
                 googleEventId = `mock_google_id_${Date.now()}`;
             }
 
-            await ReservaModel.confirmarComGoogle(db, reservaId, googleEventId);
+            await ReservaModel.confirmarComGoogle(reservaId, googleEventId);
 
             return res.status(201).json({
                 sucesso: true,
                 mensagem: temCredenciais 
                     ? "Reserva criada e sincronizada com o Google Calendar!" 
-                    : "Reserva criada localmente (Modo Simulação Google ativado).",
+                    : "Reserva criada no Supabase (Modo Simulação Google ativado).",
                 reserva: {
                     id: reservaId,
                     salaId: Number(salaId),
                     emailResponsavel,
+                    titulo: titulo || `Reserva: ${sala.nome}`,
                     inicio: isoInicio,
                     fim: isoFim,
                     googleEventId,
@@ -119,19 +120,19 @@ class ReservaController {
             });
 
         } catch (erro) {
+            console.error(erro);
             return res.status(500).json({ erro: "Erro interno no servidor." });
         }
     }
 
     // RF003: Atualizar reserva
     static async atualizarReserva(req, res) {
-        const db = req.app.locals.db;
         const { id } = req.params;
         const { salaId, inicio, fim, titulo } = req.body;
 
         try {
             const idNumerico = Number(id);
-            const reserva = await ReservaModel.buscarPorId(db, idNumerico);
+            const reserva = await ReservaModel.buscarPorId(idNumerico);
             if (!reserva) {
                 return res.status(404).json({ erro: "Reserva não encontrada." });
             }
@@ -144,7 +145,7 @@ class ReservaController {
                 return res.status(400).json({ erro: "Horário de fim deve ser posterior ao início." });
             }
 
-            const conflito = await ReservaModel.verificarConflito(db, novaSalaId, isoNovoInicio, isoNovoFim, idNumerico);
+            const conflito = await ReservaModel.verificarConflito(novaSalaId, isoNovoInicio, isoNovoFim, idNumerico);
             if (conflito) {
                 return res.status(409).json({ erro: "Novo horário em conflito com outra reserva existente." });
             }
@@ -158,7 +159,7 @@ class ReservaController {
                         calendarId,
                         eventId: reserva.googleEventId,
                         resource: {
-                            summary: titulo || `Reserva Atualizada`,
+                            summary: titulo || reserva.titulo || `Reserva Atualizada`,
                             start: { dateTime: isoNovoInicio },
                             end: { dateTime: isoNovoFim }
                         }
@@ -168,7 +169,7 @@ class ReservaController {
                 }
             }
 
-            await ReservaModel.atualizar(db, idNumerico, { salaId: novaSalaId, inicio: isoNovoInicio, fim: isoNovoFim });
+            await ReservaModel.atualizar(idNumerico, { salaId: novaSalaId, inicio: isoNovoInicio, fim: isoNovoFim, titulo });
 
             return res.json({ sucesso: true, mensagem: "Reserva e Google Calendar atualizados com sucesso!" });
         } catch (erro) {
@@ -178,12 +179,11 @@ class ReservaController {
 
     // RF004: Cancelar reserva (Soft-delete / Atualiza status)
     static async cancelarReserva(req, res) {
-        const db = req.app.locals.db;
         const { id } = req.params;
 
         try {
             const idNumerico = Number(id);
-            const reserva = await ReservaModel.buscarPorId(db, idNumerico);
+            const reserva = await ReservaModel.buscarPorId(idNumerico);
             if (!reserva) {
                 return res.status(404).json({ erro: "Reserva não encontrada." });
             }
@@ -202,7 +202,7 @@ class ReservaController {
                 }
             }
 
-            await ReservaModel.cancelar(db, idNumerico);
+            await ReservaModel.cancelar(idNumerico);
             return res.json({ sucesso: true, mensagem: "Reserva cancelada com sucesso!" });
 
         } catch (erro) {
@@ -210,14 +210,13 @@ class ReservaController {
         }
     }
 
-    // RF004-B: Deletar reserva permanentemente (Hard-delete / Remove do banco)
+    // RF004-B: Deletar reserva permanentemente (Hard-delete)
     static async deletarReserva(req, res) {
-        const db = req.app.locals.db;
         const { id } = req.params;
 
         try {
             const idNumerico = Number(id);
-            const reserva = await ReservaModel.buscarPorId(db, idNumerico);
+            const reserva = await ReservaModel.buscarPorId(idNumerico);
 
             if (!reserva) {
                 return res.status(404).json({ erro: "Reserva não encontrada." });
@@ -237,7 +236,7 @@ class ReservaController {
                 }
             }
 
-            const linhasAfetadas = await ReservaModel.deletar(db, idNumerico);
+            const linhasAfetadas = await ReservaModel.deletar(idNumerico);
 
             if (linhasAfetadas === 0) {
                 return res.status(404).json({ erro: "Reserva não encontrada para remoção." });
@@ -249,6 +248,180 @@ class ReservaController {
             return res.status(500).json({ erro: "Erro ao deletar reserva no banco de dados." });
         }
     }
+
+    static async obterCronogramaDiario(req, res) {
+        try {
+            const fusoHorario = process.env.TIMEZONE_OFFSET || '-03:00';
+            
+            // Usa a data da query (?data=2026-10-28) ou pega a data atual no fuso local
+            const hojeLocal = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const dataConsulta = req.query.data || hojeLocal;
+
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dataConsulta)) {
+                return res.status(400).json({
+                    erro: "Formato de data inválido. Use o padrão YYYY-MM-DD (ex: ?data=2026-10-28)."
+                });
+            }
+
+            const inicioDia = new Date(`${dataConsulta}T00:00:00${fusoHorario}`);
+            const fimDia = new Date(`${dataConsulta}T23:59:59.999${fusoHorario}`);
+
+            if (isNaN(inicioDia.getTime())) {
+                return res.status(400).json({ erro: "Data informada é inválida." });
+            }
+
+            const diaSemana = inicioDia.getUTCDay(); // 0 (Domingo) a 6 (Sábado)
+
+            const { salas, reservas } = await ReservaModel.buscarDadosCronograma(
+                inicioDia.toISOString(),
+                fimDia.toISOString(),
+                diaSemana
+            );
+
+            // Função auxiliar para formatar Date em "HH:mm" no fuso -03:00
+            const formatarHoraLocal = (dataISO) => {
+                const d = new Date(dataISO);
+                return d.toLocaleTimeString('pt-BR', {
+                    timeZone: 'America/Fortaleza',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            const cronogramaSalas = salas.map(sala => {
+                // Caso a sala não tenha expediente cadastrado para este dia da semana (ex: Domingo)
+                if (!sala.expediente) {
+                    return {
+                        salaId: sala.id,
+                        nomeSala: sala.nome,
+                        capacidade: sala.capacidade,
+                        abertaHoje: false,
+                        expediente: null,
+                        metricas: {
+                            minutosTotaisExpediente: 0,
+                            minutosOcupados: 0,
+                            minutosLivres: 0,
+                            taxaOcupacaoPercentual: 0
+                        },
+                        horariosOcupados: [],
+                        horariosLivres: []
+                    };
+                }
+
+                const { horaAbertura, horaFechamento } = sala.expediente;
+                const aberturaDate = new Date(`${dataConsulta}T${horaAbertura}${fusoHorario}`);
+                const fechamentoDate = new Date(`${dataConsulta}T${horaFechamento}${fusoHorario}`);
+
+                const minutosTotaisExpediente = Math.max(
+                    0,
+                    Math.round((fechamentoDate - aberturaDate) / 60000)
+                );
+
+                // Filtra as reservas desta sala específica
+                const reservasDaSala = reservas.filter(r => Number(r.salaId) === Number(sala.id));
+
+                const horariosOcupados = [];
+                const horariosLivres = [];
+                let minutosOcupados = 0;
+
+                // Cursor começa no horário de abertura da sala
+                let cursorTempo = new Date(aberturaDate);
+
+                for (const reserva of reservasDaSala) {
+                    const resInicio = new Date(reserva.inicio);
+                    const resFim = new Date(reserva.fim);
+
+                    // Recorta o intervalo da reserva para caber dentro do expediente do dia
+                    const inicioEfetivo = resInicio < aberturaDate ? aberturaDate : resInicio;
+                    const fimEfetivo = resFim > fechamentoDate ? fechamentoDate : resFim;
+
+                    // Se existe um espaço entre o cursor atual e o início da próxima reserva, é horário LIVRE
+                    if (inicioEfetivo > cursorTempo) {
+                        const duracaoLivreMin = Math.round((inicioEfetivo - cursorTempo) / 60000);
+                        horariosLivres.push({
+                            inicio: formatarHoraLocal(cursorTempo),
+                            fim: formatarHoraLocal(inicioEfetivo),
+                            inicioISO: cursorTempo.toISOString(),
+                            fimISO: inicioEfetivo.toISOString(),
+                            duracaoMinutos: duracaoLivreMin
+                        });
+                    }
+
+                    // Contabiliza o bloco ocupado dentro do expediente
+                    if (fimEfetivo > inicioEfetivo) {
+                        const duracaoOcupadaMin = Math.round((fimEfetivo - inicioEfetivo) / 60000);
+                        minutosOcupados += duracaoOcupadaMin;
+
+                        horariosOcupados.push({
+                            reservaId: reserva.id,
+                            titulo: reserva.titulo,
+                            emailResponsavel: reserva.emailResponsavel,
+                            status: reserva.status,
+                            inicio: formatarHoraLocal(inicioEfetivo),
+                            fim: formatarHoraLocal(fimEfetivo),
+                            inicioISO: reserva.inicio,
+                            fimISO: reserva.fim,
+                            duracaoMinutos: duracaoOcupadaMin
+                        });
+                    }
+
+                    // Avança o cursor para o fim desta reserva
+                    if (fimEfetivo > cursorTempo) {
+                        cursorTempo = new Date(fimEfetivo);
+                    }
+                }
+
+                // Se sobrou tempo entre o fim da última reserva e o fechamento da sala, adiciona como horário LIVRE
+                if (cursorTempo < fechamentoDate) {
+                    const duracaoLivreFinal = Math.round((fechamentoDate - cursorTempo) / 60000);
+                    horariosLivres.push({
+                        inicio: formatarHoraLocal(cursorTempo),
+                        fim: formatarHoraLocal(fechamentoDate),
+                        inicioISO: cursorTempo.toISOString(),
+                        fimISO: fechamentoDate.toISOString(),
+                        duracaoMinutos: duracaoLivreFinal
+                    });
+                }
+
+                const minutosLivres = Math.max(0, minutosTotaisExpediente - minutosOcupados);
+                const taxaOcupacaoPercentual = minutosTotaisExpediente > 0
+                    ? Number(((minutosOcupados / minutosTotaisExpediente) * 100).toFixed(1))
+                    : 0;
+
+                return {
+                    salaId: sala.id,
+                    nomeSala: sala.nome,
+                    capacidade: sala.capacidade,
+                    abertaHoje: true,
+                    expediente: {
+                        abertura: horaAbertura.slice(0, 5),
+                        fechamento: horaFechamento.slice(0, 5)
+                    },
+                    metricas: {
+                        minutosTotaisExpediente,
+                        minutosOcupados,
+                        minutosLivres,
+                        taxaOcupacaoPercentual
+                    },
+                    horariosOcupados,
+                    horariosLivres
+                };
+            });
+
+            return res.json({
+                sucesso: true,
+                data: dataConsulta,
+                diaSemana,
+                salas: cronogramaSalas
+            });
+
+        } catch (erro) {
+            console.error("Erro ao gerar cronograma diário:", erro.message);
+            return res.status(500).json({ erro: "Erro ao gerar o cronograma diário das salas." });
+        }
+    }
 }
+
+
 
 module.exports = ReservaController;
